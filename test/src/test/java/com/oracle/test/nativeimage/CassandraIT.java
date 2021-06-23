@@ -61,7 +61,7 @@ public class CassandraIT {
         
     }
 
-    // Test sSelect row from database table
+    // Test select row from database table
     @Test
     void testSelect() {
         LOGGER.fine("Running testSelect");
@@ -71,11 +71,7 @@ public class CassandraIT {
                     .callServiceAndGetData(
                             "select",
                             Map.of("id", String.valueOf(pokemon.getId())));
-            assertThat(dataValue.getValueType(), equalTo(JsonValue.ValueType.OBJECT));
-            JsonObject data = dataValue.asJsonObject();
-            assertThat(pokemon.getId(), equalTo(data.getInt("id")));
-            assertThat(pokemon.getName(), equalTo(data.getString("name")));
-            assertThat(pokemon.getType(), equalTo(data.getString("type")));
+            verifyJsonPokemon(dataValue, pokemon);
         } catch (HelidonTestException te) {
             fail(String.format(
                     "Caught %s: %s",
@@ -89,15 +85,72 @@ public class CassandraIT {
     void testInsert() {
         LOGGER.fine("Running testInsert");
         try {
-            JsonValue data = testClient.callServiceAndGetData(
+            testClient.callServiceAndGetData(
                     "insert",
                     Map.of("id", "100", "name", "Pikachu", "type", "electric"));
-            
+            verifyPokemon(100, new Pokemon(100, "Pikachu", "electric"));
         } catch (HelidonTestException te) {
             fail(String.format(
                     "Caught %s: %s",
                     te.getClass().getSimpleName(),
                     te.getMessage()));
+        }
+    }
+
+    // Test update row in database table
+    @Test
+    void testUpdate() {
+        LOGGER.fine("Running testUpdate");
+        Pokemon pokemon = Pokemon.POKEMNONS.get(2);
+        try {
+            testClient.callServiceAndGetData(
+                    "update",
+                    Map.of("id", "2", "name", "Charmeleon"));
+            verifyPokemon(2, new Pokemon(pokemon.getId(), "Charmeleon", pokemon.getType()));
+        } catch (HelidonTestException te) {
+            fail(String.format(
+                    "Caught %s: %s",
+                    te.getClass().getSimpleName(),
+                    te.getMessage()));
+        }
+    }
+
+    // Test delete row from database table
+    @Test
+    void testDelete() {
+        LOGGER.fine("Running testDelete");
+        Pokemon pokemon = Pokemon.POKEMNONS.get(3);
+        try {
+            testClient
+                    .callServiceAndGetData(
+                            "delete",
+                            Map.of("id", String.valueOf(pokemon.getId())));
+            verifyPokemon(3, null);
+        } catch (HelidonTestException te) {
+            fail(String.format(
+                    "Caught %s: %s",
+                    te.getClass().getSimpleName(),
+                    te.getMessage()));
+        }
+    }
+
+    private void verifyPokemon(int id, Pokemon pokemon) {
+        JsonValue dataValue = testClient
+                .callServiceAndGetData(
+                        "verify",
+                        Map.of("id", String.valueOf(id)));
+        verifyJsonPokemon(dataValue, pokemon);
+    }
+
+    private void verifyJsonPokemon(JsonValue dataValue, Pokemon pokemon) {
+        if (pokemon == null) {
+            assertThat(dataValue.getValueType(), equalTo(JsonValue.ValueType.NULL));
+        } else {
+            assertThat(dataValue.getValueType(), equalTo(JsonValue.ValueType.OBJECT));
+            JsonObject data = dataValue.asJsonObject();
+            assertThat(pokemon.getId(), equalTo(data.getInt("id")));
+            assertThat(pokemon.getName(), equalTo(data.getString("name")));
+            assertThat(pokemon.getType(), equalTo(data.getString("type")));
         }
     }
 

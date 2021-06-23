@@ -29,3 +29,5 @@ db:
         create-table: "CREATE TABLE pokemon (id int PRIMARY KEY, name text, type text)"
         select: "SELECT * FROM pokemon WHERE id = ?"
         insert: "INSERT INTO pokemon(id, name, type) VALUES(?, ?, ?)"
+        update: "UPDATE pokemon SET name = ? WHERE id = ?"
+        delete: "DELETE FROM pokemon WHERE id = ?"

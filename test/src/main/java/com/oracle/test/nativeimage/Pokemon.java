@@ -31,7 +31,7 @@ public class Pokemon {
     private final String name;
     private final String type;
 
-    private Pokemon(int id, String name, String type) {
+    Pokemon(int id, String name, String type) {
         this.id = id;
         this.name = name;
         this.type = type;

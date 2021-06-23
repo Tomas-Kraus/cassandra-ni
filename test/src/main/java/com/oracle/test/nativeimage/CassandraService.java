@@ -15,7 +15,6 @@
  */
 package com.oracle.test.nativeimage;
 
-import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
 
@@ -62,7 +61,10 @@ public class CassandraService implements Service {
         rules
                 .get("/ping", this::ping)
                 .get("/select", this::select)
-                .get("/insert", this::insert);
+                .get("/verify", this::verify)
+                .get("/insert", this::insert)
+                .get("/update", this::update)
+                .get("/delete", this::delete);
     }
 
     // Returns Cassandra database version.
@@ -102,6 +104,29 @@ public class CassandraService implements Service {
         }
     }
 
+    // Verify row in database table (same as select but empty row is valid response).
+    private void verify(final ServerRequest request, final ServerResponse response) {
+        try {
+            int id = Integer.parseInt(param(request, "id"));
+            ResultSet rs = session.execute(session
+                    .prepare(statements.get("select"))
+                    .bind(id));
+            Row row = rs.one();
+            if (row == null) {
+                response.send(okStatus(JsonValue.NULL));
+            } else {
+                JsonObjectBuilder job = Json.createObjectBuilder();
+                job.add("id", row.getInt("id"));
+                job.add("name", row.getString("name"));
+                job.add("type", row.getString("type"));
+                response.send(okStatus(job.build()));
+            }
+        } catch (Throwable t) {
+            response.send(exceptionStatus(
+                    new RemoteTestException(String.format("Pokemon verification failed: %s", t.getMessage()))));
+        }
+    }
+
     // Insert row into database table
     private void insert(final ServerRequest request, final ServerResponse response) {
         try {
@@ -115,6 +140,35 @@ public class CassandraService implements Service {
         } catch (Throwable t) {
             response.send(exceptionStatus(
                     new RemoteTestException(String.format("Test insert failed: %s", t.getMessage()))));
+        }
+    }
+
+    // Update row in database table
+    private void update(final ServerRequest request, final ServerResponse response) {
+        try {
+            int id = Integer.parseInt(param(request, "id"));
+            String name = param(request, "name");
+            session.execute(session
+                    .prepare(statements.get("update"))
+                    .bind(name, id));
+            response.send(okStatus(JsonValue.NULL));
+        } catch (Throwable t) {
+            response.send(exceptionStatus(
+                    new RemoteTestException(String.format("Test update failed: %s", t.getMessage()))));
+        }
+    }
+
+    // Delete row from database table
+    private void delete(final ServerRequest request, final ServerResponse response) {
+        try {
+            int id = Integer.parseInt(param(request, "id"));
+            session.execute(session
+                    .prepare(statements.get("delete"))
+                    .bind(id));
+            response.send(okStatus(JsonValue.NULL));
+        } catch (Throwable t) {
+            response.send(exceptionStatus(
+                    new RemoteTestException(String.format("Test delete failed: %s", t.getMessage()))));
         }
     }
 
