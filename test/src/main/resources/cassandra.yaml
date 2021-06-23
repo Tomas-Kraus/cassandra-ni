@@ -23,4 +23,9 @@ db:
         host: 127.0.0.1
         port: 9042
     statements:
-        ping: "select release_version from system.local"
+        ping: "SELECT release_version FROM system.local"
+        create-keyspace: "CREATE KEYSPACE test WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}"
+        use-keyspace: "USE test"
+        create-table: "CREATE TABLE pokemon (id int PRIMARY KEY, name text, type text)"
+        select: "SELECT * FROM pokemon WHERE id = ?"
+        insert: "INSERT INTO pokemon(id, name, type) VALUES(?, ?, ?)"

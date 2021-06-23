@@ -73,7 +73,7 @@ public class ServerMain {
         final LifeCycleService lcResource = new LifeCycleService(session, statements);
         final Routing routing = Routing.builder()
                 .register("/LifeCycle", lcResource)
-                .register("/Cassandra", new CassandraService(session))
+                .register("/Cassandra", new CassandraService(session, statements))
                 .build();
 
         final WebServer server = WebServer.builder()

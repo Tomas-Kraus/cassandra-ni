@@ -15,9 +15,12 @@
  */
 package com.oracle.test.nativeimage;
 
+import java.math.BigDecimal;
+import java.util.Map;
 import java.util.Optional;
 
 import javax.json.Json;
+import javax.json.JsonObjectBuilder;
 import javax.json.JsonValue;
 
 import io.helidon.tests.integration.tools.service.RemoteTestException;
@@ -33,33 +36,38 @@ import com.datastax.oss.driver.api.core.cql.Row;
 import static io.helidon.tests.integration.tools.service.AppResponse.exceptionStatus;
 import static io.helidon.tests.integration.tools.service.AppResponse.okStatus;
 
-
+// PERF: Cassandra API is blocking so it's direct usage in Service request handlers
+//       is not correct. But it will work for the purpose of simple jUnit testing.
 /**
  * Cassandra database web service.
  */
 public class CassandraService implements Service {
 
     private final CqlSession session;
+    private final Map<String,String> statements;
 
     /**
      * Creates an instance of common web service code for testing application.
      *
      * @param session Cassandra database session
+     * @param statements configured statements
      */
-    public CassandraService(final CqlSession session) {
+    public CassandraService(final CqlSession session, final Map<String,String> statements) {
         this.session = session;
+        this.statements = statements;
     }
 
     @Override
     public void update(Routing.Rules rules) {
         rules
                 .get("/ping", this::ping)
-                .get("/verifyHello", this::verifyHello);
+                .get("/select", this::select)
+                .get("/insert", this::insert);
     }
 
     // Returns Cassandra database version.
     private void ping(final ServerRequest request, final ServerResponse response) {
-        ResultSet rs = session.execute("SELECT release_version FROM system.local");
+        ResultSet rs = session.execute(statements.get("ping"));
         Row row = rs.one();
         if (row != null) {
             JsonValue hw = Json.createValue(row.getString("release_version"));
@@ -70,16 +78,43 @@ public class CassandraService implements Service {
         }
     }
 
-    // Check whether provided HTTP query parameter "value" contains word "hello".
-    private void verifyHello(final ServerRequest request, final ServerResponse response) {
-        String value = param(request, "value");
-        if (value.toLowerCase().contains("hello")) {
+    // Select row from database table
+    private void select(final ServerRequest request, final ServerResponse response) {
+        try {
+            int id = Integer.parseInt(param(request, "id"));
+            ResultSet rs = session.execute(session
+                    .prepare(statements.get("select"))
+                    .bind(id));
+            Row row = rs.one();
+            if (row == null) {
+                response.send(exceptionStatus(
+                        new RemoteTestException("Test select failed: No rows returned.")));
+            } else {
+                JsonObjectBuilder job = Json.createObjectBuilder();
+                job.add("id", row.getInt("id"));
+                job.add("name", row.getString("name"));
+                job.add("type", row.getString("type"));
+                response.send(okStatus(job.build()));
+            }
+        } catch (Throwable t) {
+            response.send(exceptionStatus(
+                    new RemoteTestException(String.format("Test select failed: %s", t.getMessage()))));
+        }
+    }
+
+    // Insert row into database table
+    private void insert(final ServerRequest request, final ServerResponse response) {
+        try {
+            int id = Integer.parseInt(param(request, "id"));
+            String name = param(request, "name");
+            String type = param(request, "type");
+            session.execute(session
+                    .prepare(statements.get("insert"))
+                    .bind(id, name, type));
             response.send(okStatus(JsonValue.NULL));
-        } else {
-            response.send(
-                    exceptionStatus(
-                            new RemoteTestException(
-                                    String.format("Value \"%s\" does not contain string \"hello\"", value))));
+        } catch (Throwable t) {
+            response.send(exceptionStatus(
+                    new RemoteTestException(String.format("Test insert failed: %s", t.getMessage()))));
         }
     }
 

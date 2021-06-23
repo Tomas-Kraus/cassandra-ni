@@ -18,6 +18,7 @@ package com.oracle.test.nativeimage;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import javax.json.JsonObject;
 import javax.json.JsonString;
 import javax.json.JsonValue;
 
@@ -28,6 +29,8 @@ import io.helidon.tests.integration.tools.client.TestServiceClient;
 
 import org.junit.jupiter.api.Test;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
@@ -46,7 +49,6 @@ public class CassandraIT {
     @Test
     public void testPing() {
         LOGGER.fine(() -> "Running testPing");
-        LOGGER.fine("Running testVerifyHelloPositive");
         try {
             JsonValue data = testClient.callServiceAndGetData("ping");
             LOGGER.info(() -> String.format("Cassandra version: %s", ((JsonString)data).getString()));
@@ -59,14 +61,21 @@ public class CassandraIT {
         
     }
 
-    // Test verifyHello service with expected positive response
+    // Test sSelect row from database table
     @Test
-    void testVerifyHelloPositive() {
-        LOGGER.fine("Running testVerifyHelloPositive");
+    void testSelect() {
+        LOGGER.fine("Running testSelect");
+        Pokemon pokemon = Pokemon.POKEMNONS.get(1);
         try {
-            JsonValue data = testClient.callServiceAndGetData(
-                    "verifyHello",
-                    Map.of("value", "Hello World!"));
+            JsonValue dataValue = testClient
+                    .callServiceAndGetData(
+                            "select",
+                            Map.of("id", String.valueOf(pokemon.getId())));
+            assertThat(dataValue.getValueType(), equalTo(JsonValue.ValueType.OBJECT));
+            JsonObject data = dataValue.asJsonObject();
+            assertThat(pokemon.getId(), equalTo(data.getInt("id")));
+            assertThat(pokemon.getName(), equalTo(data.getString("name")));
+            assertThat(pokemon.getType(), equalTo(data.getString("type")));
         } catch (HelidonTestException te) {
             fail(String.format(
                     "Caught %s: %s",
@@ -75,18 +84,18 @@ public class CassandraIT {
         }
     }
 
-    // Test verifyHello service with expected negative response
+    // Test insert row into database table
     @Test
-    void testVerifyHelloNegative() {
-        LOGGER.fine("Running testVerifyHelloNegative");
+    void testInsert() {
+        LOGGER.fine("Running testInsert");
         try {
             JsonValue data = testClient.callServiceAndGetData(
-                    "verifyHello",
-                    Map.of("value", "Wrong content."));
-            fail("HelidonTestException was not thrown");
+                    "insert",
+                    Map.of("id", "100", "name", "Pikachu", "type", "electric"));
+            
         } catch (HelidonTestException te) {
-            LOGGER.finer(() -> String.format(
-                    "Got expected %s: %s",
+            fail(String.format(
+                    "Caught %s: %s",
                     te.getClass().getSimpleName(),
                     te.getMessage()));
         }

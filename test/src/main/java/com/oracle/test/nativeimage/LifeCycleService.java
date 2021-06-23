@@ -22,6 +22,7 @@ import java.util.logging.Logger;
 import javax.json.JsonValue;
 
 import io.helidon.common.http.MediaType;
+import io.helidon.tests.integration.tools.service.RemoteTestException;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerRequest;
 import io.helidon.webserver.ServerResponse;
@@ -29,7 +30,9 @@ import io.helidon.webserver.Service;
 import io.helidon.webserver.WebServer;
 
 import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 
+import static io.helidon.tests.integration.tools.service.AppResponse.exceptionStatus;
 import static io.helidon.tests.integration.tools.service.AppResponse.okStatus;
 
 /**
@@ -39,7 +42,7 @@ public class LifeCycleService implements Service {
 
     private WebServer server;
     private final CqlSession session;
-    final Map<String,String> statements;
+    private final Map<String,String> statements;
 
     /**
      * Creates an instance of web service to handle web server life cycle.
@@ -71,7 +74,18 @@ public class LifeCycleService implements Service {
      * @return {@code null} value
      */
     private void init(final ServerRequest request, final ServerResponse response) {
-        response.send(okStatus(JsonValue.NULL));
+        try {
+            session.execute(statements.get("create-keyspace"));
+            session.execute(statements.get("use-keyspace"));
+            session.execute(statements.get("create-table"));
+            PreparedStatement ps = session.prepare(statements.get("insert"));
+            Pokemon.POKEMNONS.forEach(
+                    (id, pokemon) -> session.execute(ps.bind(id, pokemon.getName(), pokemon.getType())));
+            response.send(okStatus(JsonValue.NULL));
+        } catch (Throwable t) {
+            response.send(exceptionStatus(
+                    new RemoteTestException(String.format("Could not initialize database: %s", t.getMessage()))));
+        }
     }
 
     /**
