@@ -75,13 +75,13 @@ fi
 # Run remote application tests in Java VM mode
 [ -n "${FLAG_J}" ] && \
     (cd ${WS_DIR}/test && \
-        echo mvn \
+        echo mvn -P tests \
             -Dapp.config=${TEST_CONFIG} \
             -Ddb.user=${DB_USER} \
             -Ddb.password=${DB_PASSWORD} \
             -Ddb.url="${DB_URL}" \
             verify && \
-        mvn \
+        mvn -P tests \
             -Dapp.config=${TEST_CONFIG} \
             -Ddb.user=${DB_USER} \
             -Ddb.password=${DB_PASSWORD} \
@@ -91,13 +91,13 @@ fi
 # Run remote application tests in native image mode
 [ -n "${FLAG_N}" ] && \
     (cd ${WS_DIR}/test && \
-        echo mvn -Pnative-image \
+        echo mvn -Ptests,native-image \
             -Dapp.config=${TEST_CONFIG} \
             -Ddb.user=${DB_USER} \
             -Ddb.password=${DB_PASSWORD} \
             -Ddb.url="${DB_URL}" \
             verify && \
-        mvn -Pnative-image \
+        mvn -Ptests,native-image \
             -Dapp.config=${TEST_CONFIG} \
             -Ddb.user=${DB_USER} \
             -Ddb.password=${DB_PASSWORD} \
