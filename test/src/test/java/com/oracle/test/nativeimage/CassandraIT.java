@@ -28,30 +28,35 @@ import io.helidon.tests.integration.tools.client.TestServiceClient;
 
 import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
- * Test Hello World service.
+ * Test Cassandra service.
  */
-public class HelloWorldIT {
+public class CassandraIT {
 
-    private static final Logger LOGGER = Logger.getLogger(HelloWorldIT.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(CassandraIT.class.getName());
 
     private final TestServiceClient testClient = TestClient.builder()
             .port(HelidonProcessRunner.HTTP_PORT)
-            .service("HelloWorld")
+            .service("Cassandra")
             .build();
 
-    // Test sendHelloWorld service
+    // Test Cassandra ping statement.
     @Test
-    public void testHelloWorld() {
-        LOGGER.fine(() -> "Running testHelloWorld");
-        JsonValue data = testClient.callServiceAndGetData("sendHelloWorld");
-        String helloWorld = ((JsonString)data).getString();
-        LOGGER.finer(() -> String.format("Response: \"%s\"", helloWorld));
-        assertThat(helloWorld, equalTo("Hello World!"));
+    public void testPing() {
+        LOGGER.fine(() -> "Running testPing");
+        LOGGER.fine("Running testVerifyHelloPositive");
+        try {
+            JsonValue data = testClient.callServiceAndGetData("ping");
+            LOGGER.info(() -> String.format("Cassandra version: %s", ((JsonString)data).getString()));
+        } catch (HelidonTestException te) {
+            fail(String.format(
+                    "Caught %s: %s",
+                    te.getClass().getSimpleName(),
+                    te.getMessage()));
+        }
+        
     }
 
     // Test verifyHello service with expected positive response
@@ -85,18 +90,6 @@ public class HelloWorldIT {
                     te.getClass().getSimpleName(),
                     te.getMessage()));
         }
-    }
-
-    // Test personalHelloWorld service with name from database
-    @Test
-    void testpersonalHelloWorld() {
-        LOGGER.fine("Running testpersonalHelloWorld");
-        JsonValue data = testClient.callServiceAndGetData(
-                "personalHelloWorld",
-                Map.of("nick", "Ash"));
-        String greeting = ((JsonString)data).getString();
-        LOGGER.finer(() -> String.format("Response: \"%s\"", greeting));
-        assertThat(greeting, containsString("Ash Ketchum"));
     }
 
 }

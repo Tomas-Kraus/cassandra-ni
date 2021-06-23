@@ -15,18 +15,21 @@
  */
 package com.oracle.test.nativeimage;
 
-import com.oracle.test.nativeimage.ServerMain;
-
+import java.net.InetSocketAddress;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import io.helidon.config.Config;
+import io.helidon.config.ConfigSources;
 import io.helidon.tests.integration.tools.client.HelidonProcessRunner;
 import io.helidon.tests.integration.tools.client.TestClient;
 import io.helidon.tests.integration.tools.client.TestServiceClient;
 import io.helidon.tests.integration.tools.client.TestsLifeCycleExtension;
+
+import com.datastax.oss.driver.api.core.AllNodesFailedException;
+import com.datastax.oss.driver.api.core.CqlSession;
 
 // Implements global setup and close actions. This class must be registered as SPI service.
 /**
@@ -52,7 +55,12 @@ public class ServerLifeCycleExtension extends TestsLifeCycleExtension {
     @Override
     public void check() {
         LOGGER.info("Running initial test check()");
-        waitForDatabase();
+        try {
+            waitForDatabase();
+        } catch (Throwable t) {
+            LOGGER.log(Level.WARNING, t, () -> String.format("Database check failed: %s", t.getMessage()));
+            throw t;
+        }
     }
 
     /**
@@ -100,6 +108,7 @@ public class ServerLifeCycleExtension extends TestsLifeCycleExtension {
 
     @Override
     protected String[] processRunnerArgs() {
+        LOGGER.info(String.format("processRunnerArgs: appConfigProperty=%s", appConfigProperty));
         return new String[] {appConfigProperty};
     }
 
@@ -119,34 +128,30 @@ public class ServerLifeCycleExtension extends TestsLifeCycleExtension {
 
     @SuppressWarnings("SleepWhileInLoop")
     public static void waitForDatabase() {
-        final String dbUser = System.getProperty("db.user");
-        final String dbPassword = System.getProperty("db.password");
-        final String dbUrl = System.getProperty("db.url");
-        if (dbUser == null) {
-            throw new IllegalStateException("Database user name was not set!");
-        }
-        if (dbPassword == null) {
-            throw new IllegalStateException("Database user password was not set!");
-        }
-        if (dbUrl == null) {
-            throw new IllegalStateException("Database URL was not set!");
-        }
+        final String appConfig = System.getProperty("app.config");
+        final Config config = Config.create(ConfigSources.classpath(appConfig));
+        final long start = System.currentTimeMillis();
+        final String host = config.get("db.connection.host").as(String.class).get();
+        final int port = config.get("db.connection.port").as(Integer.class).get();
         long endTm = 1000 * TIMEOUT + System.currentTimeMillis();
         while (true) {
             try {
-                LOGGER.finest(() -> String.format("Connection check: user=%s password=%s url=%s", dbUser, dbPassword, dbUrl));
-                Connection conn = DriverManager.getConnection(dbUrl, dbUser, dbPassword);
-                closeConnection(conn);
+                final CqlSession session = CqlSession.builder()
+                        .addContactPoint(new InetSocketAddress(host, port))
+                        .withLocalDatacenter("single")
+                        .build();
+                LOGGER.info(() -> String.format("Database is running at %s:%d", host, port));
+                session.close();
                 return;
-            } catch (SQLException ex) {
-                LOGGER.finest(() -> String.format("Connection check: %s", ex.getMessage()));
+            } catch (AllNodesFailedException ex) {
+                LOGGER.finest(() -> String.format("Connection failed: %s", ex.getMessage()));
                 if (System.currentTimeMillis() > endTm) {
                     throw new IllegalStateException(String.format("Database is not ready within %d seconds", TIMEOUT));
                 }
                 try {
                     Thread.sleep(SLEEP_MILIS);
                 } catch (InterruptedException ie) {
-                    LOGGER.log(Level.WARNING, ie, () -> String.format("Thread was interrupted: %s", ie.getMessage()));
+                    LOGGER.warning(() -> String.format("Thread was interrupted: %s", ie.getMessage()));
                 }
             }
         }

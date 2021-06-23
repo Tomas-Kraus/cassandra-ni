@@ -40,17 +40,14 @@ print_help() {
     echo '  -c start and stop Docker containers'
     echo '  -j execute remote application tests in Java VM mode (default)'
     echo '  -n execute remote application tests in native image mode'
-    echo '  -d <database> select database'
-    echo '     <database> :: mysql | pgsql'
 }
 
 # Evaluate command line arguments
 if [ "$#" -gt '0' ]; then
-    while getopts 'hcjnd:' flag 2> /dev/null; do
+    while getopts 'hcjn' flag 2> /dev/null; do
         case "${flag}" in
             h) print_help && exit;;
             c) readonly FLAG_C='1';;
-            d) readonly FLAG_D=${OPTARG};;
             j) readonly FLAG_J='1';;
             n) readonly FLAG_N='1';;
         esac
@@ -58,16 +55,7 @@ if [ "$#" -gt '0' ]; then
 fi
 
 # Load database setup
-if [ -n "${FLAG_D}" ]; then
-    case "${FLAG_D}" in
-        mysql) . ${WS_DIR}/scripts/mysql.sh;;
-        pgsql) . ${WS_DIR}/scripts/pgsql.sh;;
-        *)     echo 'ERROR: Unknown database name, exitting.' && exit 1;;
-    esac
-else
-    echo 'ERROR: No database was selected, exitting.'
-    exit 1
-fi
+. ${WS_DIR}/scripts/cassandra.sh
 
 # Start docker Container
 if [ -n "${FLAG_C}" ]; then
@@ -87,13 +75,13 @@ fi
 # Run remote application tests in Java VM mode
 [ -n "${FLAG_J}" ] && \
     (cd ${WS_DIR}/test && \
-        echo mvn -P${DB_PROFILE} \
+        echo mvn \
             -Dapp.config=${TEST_CONFIG} \
             -Ddb.user=${DB_USER} \
             -Ddb.password=${DB_PASSWORD} \
             -Ddb.url="${DB_URL}" \
             verify && \
-        mvn -P${DB_PROFILE} \
+        mvn \
             -Dapp.config=${TEST_CONFIG} \
             -Ddb.user=${DB_USER} \
             -Ddb.password=${DB_PASSWORD} \
@@ -103,13 +91,13 @@ fi
 # Run remote application tests in native image mode
 [ -n "${FLAG_N}" ] && \
     (cd ${WS_DIR}/test && \
-        echo mvn -P${DB_PROFILE} -Pnative-image \
+        echo mvn -Pnative-image \
             -Dapp.config=${TEST_CONFIG} \
             -Ddb.user=${DB_USER} \
             -Ddb.password=${DB_PASSWORD} \
             -Ddb.url="${DB_URL}" \
             verify && \
-        mvn -P${DB_PROFILE} -Pnative-image \
+        mvn -Pnative-image \
             -Dapp.config=${TEST_CONFIG} \
             -Ddb.user=${DB_USER} \
             -Ddb.password=${DB_PASSWORD} \

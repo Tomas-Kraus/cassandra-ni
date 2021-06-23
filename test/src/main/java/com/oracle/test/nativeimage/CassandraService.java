@@ -20,45 +20,54 @@ import java.util.Optional;
 import javax.json.Json;
 import javax.json.JsonValue;
 
-import io.helidon.dbclient.DbClient;
 import io.helidon.tests.integration.tools.service.RemoteTestException;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerRequest;
 import io.helidon.webserver.ServerResponse;
 import io.helidon.webserver.Service;
 
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
+
 import static io.helidon.tests.integration.tools.service.AppResponse.exceptionStatus;
 import static io.helidon.tests.integration.tools.service.AppResponse.okStatus;
 
 
 /**
- * Sample web service.
+ * Cassandra database web service.
  */
-public class HelloWorldService implements Service {
+public class CassandraService implements Service {
 
-    private final DbClient dbClient;
+    private final CqlSession session;
 
     /**
      * Creates an instance of common web service code for testing application.
      *
-     * @param dbClient DbClient instance
+     * @param session Cassandra database session
      */
-    public HelloWorldService(final DbClient dbClient) {
-        this.dbClient = dbClient;
+    public CassandraService(final CqlSession session) {
+        this.session = session;
     }
 
     @Override
     public void update(Routing.Rules rules) {
         rules
-                .get("/sendHelloWorld", this::sendHelloWorld)
-                .get("/verifyHello", this::verifyHello)
-                .get("/personalHelloWorld", this::personalHelloWorld);
+                .get("/ping", this::ping)
+                .get("/verifyHello", this::verifyHello);
     }
 
-    // Returns JSON object with "Hello World!" String.
-    private void sendHelloWorld(final ServerRequest request, final ServerResponse response) {
-        JsonValue hw = Json.createValue("Hello World!");
-        response.send(okStatus(hw));
+    // Returns Cassandra database version.
+    private void ping(final ServerRequest request, final ServerResponse response) {
+        ResultSet rs = session.execute("SELECT release_version FROM system.local");
+        Row row = rs.one();
+        if (row != null) {
+            JsonValue hw = Json.createValue(row.getString("release_version"));
+            response.send(okStatus(hw));
+        } else {
+            response.send(exceptionStatus(
+                    new RemoteTestException("No Cassandra version was returned")));
+        }
     }
 
     // Check whether provided HTTP query parameter "value" contains word "hello".
@@ -72,31 +81,6 @@ public class HelloWorldService implements Service {
                             new RemoteTestException(
                                     String.format("Value \"%s\" does not contain string \"hello\"", value))));
         }
-    }
-
-    // Returns personalized "Hello" for known nicks or "Hello World!" otherwise.
-    private void personalHelloWorld(final ServerRequest request, final ServerResponse response) {
-        String nick = param(request, "nick");
-        dbClient.execute(
-                exec -> exec
-                    .createNamedGet("get-name")
-                .addParam("nick", nick)
-                .execute())
-                .thenAccept(maybeDbRow -> {
-                    maybeDbRow.ifPresentOrElse(
-                            dbRow -> response.send(
-                                    okStatus(
-                                            Json.createValue(
-                                                    String.format("Hello %s!", dbRow.column("name").as(String.class))))),
-                            () -> response.send(
-                                    okStatus(
-                                            Json.createValue(
-                                                    "Hello World!"))));
-                })
-                .exceptionally(t -> {
-                    response.send(exceptionStatus(t));
-                    return null;
-                });
     }
 
     /*

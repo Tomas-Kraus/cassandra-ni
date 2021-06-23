@@ -19,21 +19,8 @@ server:
   host: 0.0.0.0
 
 db:
-  source: jdbc
-  connection:
-    url: ${db.url}
-    username: ${db.user}
-    password: ${db.password}
-  health-check:
-    type: dml
-    statement: "DO 0"
-  statements:
-    # custom DML ping statement
-    ping-dml: "DO 0"
-    # custom query ping statement
-    ping-query: "SELECT 0"
-    # database schema initialization statements
-    create-table: "CREATE TABLE Person (nick VARCHAR(64) NOT NULL PRIMARY KEY, name VARCHAR(64) NOT NULL)"
-    insert-person: "INSERT INTO Person (nick, name) VALUES(?, ?)"
-    # get person name by nick, use named parameters in query
-    get-name: "SELECT name FROM Person WHERE nick = :nick"
+    connection:
+        host: 127.0.0.1
+        port: 9042
+    statements:
+        ping: "select release_version from system.local"

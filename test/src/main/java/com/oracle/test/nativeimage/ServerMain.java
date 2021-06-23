@@ -15,15 +15,19 @@
  */
 package com.oracle.test.nativeimage;
 
+import java.net.InetSocketAddress;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import io.helidon.common.LogConfig;
 import io.helidon.config.Config;
 import io.helidon.config.ConfigSources;
-import io.helidon.dbclient.DbClient;
 import io.helidon.media.jsonp.JsonpSupport;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.WebServer;
+
+import com.datastax.oss.driver.api.core.CqlSession;
 
 /**
  * Main Class.
@@ -58,13 +62,18 @@ public class ServerMain {
     private static WebServer startServer(final String configFile) {
 
         final Config config = Config.create(ConfigSources.classpath(configFile));
-        final DbClient dbClient = DbClient.builder(config.get("db"))
+        final Map<String,String> statements = statementsMap(config);
+        final CqlSession session = CqlSession.builder()
+                .addContactPoint(
+                        new InetSocketAddress(
+                                config.get("db.connection.host").as(String.class).get(),
+                                config.get("db.connection.port").as(Integer.class).get()))
+                .withLocalDatacenter("single")
                 .build();
-        final LifeCycleService lcResource = new LifeCycleService(dbClient);
-
+        final LifeCycleService lcResource = new LifeCycleService(session, statements);
         final Routing routing = Routing.builder()
                 .register("/LifeCycle", lcResource)
-                .register("/HelloWorld", new HelloWorldService(dbClient))
+                .register("/Cassandra", new CassandraService(session))
                 .build();
 
         final WebServer server = WebServer.builder()
@@ -88,4 +97,14 @@ public class ServerMain {
         return server;
     }
 
+    private static Map<String,String> statementsMap(final Config config) {
+        final Config statementsConfig = config.get("db.statements");
+        Map<String,String> statements = new HashMap<>();
+        statementsConfig.traverse().forEach(node -> {
+            if (node.isLeaf()) {
+                statements.put(node.name(), node.asString().get());
+            }
+        });
+        return statements;
+    }
 }

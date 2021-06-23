@@ -15,20 +15,21 @@
  */
 package com.oracle.test.nativeimage;
 
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.json.Json;
+import javax.json.JsonValue;
 
 import io.helidon.common.http.MediaType;
-import io.helidon.dbclient.DbClient;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerRequest;
 import io.helidon.webserver.ServerResponse;
 import io.helidon.webserver.Service;
 import io.helidon.webserver.WebServer;
 
-import static io.helidon.tests.integration.tools.service.AppResponse.exceptionStatus;
+import com.datastax.oss.driver.api.core.CqlSession;
+
 import static io.helidon.tests.integration.tools.service.AppResponse.okStatus;
 
 /**
@@ -37,16 +38,18 @@ import static io.helidon.tests.integration.tools.service.AppResponse.okStatus;
 public class LifeCycleService implements Service {
 
     private WebServer server;
-
-    private final DbClient dbClient;
+    private final CqlSession session;
+    final Map<String,String> statements;
 
     /**
      * Creates an instance of web service to handle web server life cycle.
      *
-     * @param dbClient DbClient instance
+     * @param session Cassandra database session
+     * @param statements configured statements
      */
-    public LifeCycleService(final DbClient dbClient) {
-        this.dbClient = dbClient;
+    public LifeCycleService(final CqlSession session, final Map<String,String> statements) {
+        this.session = session;
+        this.statements = statements;
     }
 
     @Override
@@ -68,17 +71,7 @@ public class LifeCycleService implements Service {
      * @return {@code null} value
      */
     private void init(final ServerRequest request, final ServerResponse response) {
-        dbClient.execute(
-                exec -> exec
-                        .namedDml("create-table")
-                        .flatMapSingle(result -> exec.namedDml("insert-person", "Ash", "Ash Ketchum"))
-                        .flatMapSingle(result -> exec.namedDml("insert-person", "Brock", "Brock Harrison")))
-                .toCompletableFuture()
-                .thenAccept(result -> response.send(okStatus(Json.createValue(result))))
-                .exceptionally(t -> {
-                    response.send(exceptionStatus(t));
-                    return null;
-                });
+        response.send(okStatus(JsonValue.NULL));
     }
 
     /**
@@ -89,6 +82,7 @@ public class LifeCycleService implements Service {
      * @return {@code null} value
      */
     private void exit(final ServerRequest request, final ServerResponse response) {
+        session.close();
         response.headers().contentType(MediaType.TEXT_PLAIN);
         response.send("Testing web server shutting down.");
         ExitThread.start(server);

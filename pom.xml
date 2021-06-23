@@ -39,6 +39,7 @@
     <properties>
         <version.lib.jandex-maven-plugin>1.0.6</version.lib.jandex-maven-plugin>
         <version.lib.helidon>2.3.0</version.lib.helidon>
+        <version.lib.datastax>4.12.0</version.lib.datastax>
         <mainClass>io.helidon.tests.integration.tools.example.ServerMain</mainClass>
     </properties>
 
@@ -84,16 +85,6 @@
                 <groupId>io.helidon.media</groupId>
                 <artifactId>helidon-media-jsonb</artifactId>
                 <version>${version.lib.helidon}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.helidon.tests.integration.tools</groupId>
-                <artifactId>helidon-tests-integration-tools-service</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.helidon.tests.integration.tools</groupId>
-                <artifactId>helidon-tests-integration-tools-client</artifactId>
-                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>

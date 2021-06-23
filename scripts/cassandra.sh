@@ -14,24 +14,22 @@
 # limitations under the License.
 #
 
-# MySQL database setup (shell script)
+# Cassandra database setup (shell script)
 
 echo 'Using MySQL database'
 
 readonly DB_HOST='127.0.0.1'
-readonly DB_PORT='3306'
+readonly DB_PORT='9042'
 readonly DB_NAME='pokemon'
-readonly DB_USER='user'
-readonly DB_PASSWORD='p4ssw0rd'
-readonly DB_ROOT_PASSWORD='r00t_p4ssw0rd'
-readonly DB_ARGS='useSSL=false&allowPublicKeyRetrieval=true'
-readonly DB_URL="jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?${DB_ARGS}"
+readonly DB_USER=''
+readonly DB_PASSWORD=''
+readonly DB_ROOT_PASSWORD=''
+readonly DB_URL="cassandra"
 
-readonly TEST_CONFIG='mysql.yaml'
+readonly TEST_CONFIG='cassandra.yaml'
 
-readonly DOCKER_ENV="-e MYSQL_USER=${DB_USER} -e MYSQL_DATABASE=${DB_NAME} -e MYSQL_PASSWORD=${DB_PASSWORD} -e MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}"
-readonly DOCKER_IMG='mysql:8'
-
-readonly DB_PROFILE='mysql'
+# DC name 'single' is used in the source code too.
+readonly DOCKER_ENV="-e CASSANDRA_DC=single -e CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch"
+readonly DOCKER_IMG='cassandra:3'
 
 echo " - Database URL: ${DB_URL}"
