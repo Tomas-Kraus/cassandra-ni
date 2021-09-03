@@ -38,7 +38,8 @@
     <properties>
         <version.lib.jandex-maven-plugin>1.0.6</version.lib.jandex-maven-plugin>
         <version.lib.helidon>2.3.0</version.lib.helidon>
-        <version.lib.datastax>4.12.0</version.lib.datastax>
+        <version.lib.datastax>4.13.0</version.lib.datastax>
+        <version.lib.lz4>1.8.0</version.lib.lz4>
         <mainClass>com.oracle.test.nativeimage.ServerMain</mainClass>
     </properties>
     <dependencyManagement>
@@ -67,6 +68,11 @@
                 <groupId>com.datastax.oss</groupId>
                 <artifactId>java-driver-mapper-runtime</artifactId>
                 <version>${version.lib.datastax}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.lz4</groupId>
+                <artifactId>lz4-java</artifactId>
+                <version>${version.lib.lz4}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -121,6 +127,10 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-jdk14</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.lz4</groupId>
+            <artifactId>lz4-java</artifactId>
         </dependency>
         <dependency>
             <groupId>org.glassfish</groupId>
